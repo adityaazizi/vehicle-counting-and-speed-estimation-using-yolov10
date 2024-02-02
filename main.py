@@ -24,10 +24,8 @@ class ViewTransformer:
 
 
 CURRENT_DIRECTORY = os.getcwd()
-SOURCE_VIDEO_PATH = os.path.join(
-    CURRENT_DIRECTORY, 'datasets/input/input_TOL-cimanggis-cibitung-KM-51.mp4')
-TARGET_VIDEO_PATH = os.path.join(
-    CURRENT_DIRECTORY, 'datasets/output/output_TOL-cimanggis-cibitung-KM-51.mp4')
+SOURCE_VIDEO_PATH = ''
+TARGET_VIDEO_PATH = ''
 
 CONFIDENCE_THRESHOLD = 0.30
 MATCH_TRESHOLD = 0.8
@@ -35,20 +33,12 @@ IOU_THRESHOLD = 0.5
 MODEL_RESOLUTION = 640
 
 SOURCE = np.array([
-    [-250, 480],
-    [1010, 480],
-    [510, 158],
-    [338, 158]
 ])
 
 TARGET_WIDTH = 10
 TARGET_HEIGHT = 100
 
 TARGET = np.array([
-    [0, 0],
-    [TARGET_WIDTH - 1, 0],
-    [TARGET_WIDTH - 1, TARGET_HEIGHT - 1],
-    [0, TARGET_HEIGHT - 1],
 ])
 
 model = YOLO('yolov8x.pt')
@@ -85,8 +75,8 @@ for _ in tqdm(range(video_info.total_frames), desc="Rendering videos with Boundi
     if not ret:
         break
 
-    result = model(frame, classes=[
-                   2, 5, 7], imgsz=MODEL_RESOLUTION, verbose=False, device='mps')[0]
+    result = model(frame, imgsz=MODEL_RESOLUTION,
+                   verbose=False, device='mps')[0]
 
     detections = sv.Detections.from_ultralytics(result)
     detections = detections[polygon_zone.trigger(detections)]

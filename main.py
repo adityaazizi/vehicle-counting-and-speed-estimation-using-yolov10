@@ -8,7 +8,6 @@ from collections import defaultdict, deque
 
 
 class ViewTransformer:
-
     def __init__(self, source: np.ndarray, target: np.ndarray) -> None:
         source = source.astype(np.float32)
         target = target.astype(np.float32)
@@ -24,50 +23,63 @@ class ViewTransformer:
 
 
 CURRENT_DIRECTORY = os.getcwd()
-SOURCE_VIDEO_PATH = ''
-TARGET_VIDEO_PATH = ''
+SOURCE_VIDEO_PATH = ''  # add your video path
+TARGET_VIDEO_PATH = ''  # add your video path
+MODEL = os.path.join(CURRENT_DIRECTORY, 'weight/yolov8x.pt')
 
-CONFIDENCE_THRESHOLD = 0.30
-MATCH_TRESHOLD = 0.8
-IOU_THRESHOLD = 0.5
-MODEL_RESOLUTION = 640
+CONFIDENCE_THRESHOLD = ''
+MATCH_TRESHOLD = ''
+IOU_THRESHOLD = ''
+MODEL_RESOLUTION = ''
 
 SOURCE = np.array([
+    # your current polygon here
 ])
 
-TARGET_WIDTH = 10
-TARGET_HEIGHT = 100
+TARGET_WIDTH = ''
+TARGET_HEIGHT = ''
 
 TARGET = np.array([
+    # your target polygon here
 ])
 
-model = YOLO('yolov8x.pt')
+model = YOLO(MODEL)
 model.fuse()
 
 video_info = sv.VideoInfo.from_video_path(video_path=SOURCE_VIDEO_PATH)
-frame_generator = sv.get_video_frames_generator(source_path=SOURCE_VIDEO_PATH)
-byte_track = sv.ByteTrack(frame_rate=video_info.fps, track_thresh=CONFIDENCE_THRESHOLD,
-                          match_thresh=MATCH_TRESHOLD, track_buffer=video_info.fps)
-
-
+byte_track = sv.ByteTrack(
+    frame_rate=video_info.fps,
+    track_thresh=CONFIDENCE_THRESHOLD,
+    match_thresh=MATCH_TRESHOLD,
+    track_buffer=video_info.fps
+)
 thickness = sv.calculate_dynamic_line_thickness(
-    resolution_wh=video_info.resolution_wh)
+    resolution_wh=video_info.resolution_wh
+)
 text_scale = sv.calculate_dynamic_text_scale(
-    resolution_wh=video_info.resolution_wh)
+    resolution_wh=video_info.resolution_wh
+)
 bounding_box_annotator = sv.BoundingBoxAnnotator(
-    thickness=thickness, color_lookup=sv.ColorLookup.TRACK)
+    thickness=thickness,
+    color_lookup=sv.ColorLookup.TRACK
+)
 label_annotator = sv.LabelAnnotator(
-    text_scale=text_scale, text_thickness=thickness, color_lookup=sv.ColorLookup.TRACK)
+    text_scale=text_scale,
+    text_thickness=thickness,
+    color_lookup=sv.ColorLookup.TRACK
+)
 polygon_zone = sv.PolygonZone(
-    polygon=SOURCE, frame_resolution_wh=video_info.resolution_wh)
+    polygon=SOURCE, frame_resolution_wh=video_info.resolution_wh
+)
 
 view_transformer = ViewTransformer(source=SOURCE, target=TARGET)
 coordinates = defaultdict(lambda: deque(maxlen=video_info.fps))
 
-
-fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
+fourcc = cv2.VideoWriter_fourcc(*'MP4V')
 vid_writer = cv2.VideoWriter(
-    TARGET_VIDEO_PATH, fourcc, video_info.fps, (video_info.width, video_info.height))
+    TARGET_VIDEO_PATH,
+    fourcc, video_info.fps,
+    (video_info.width, video_info.height))
 cap = cv2.VideoCapture(SOURCE_VIDEO_PATH)
 
 for _ in tqdm(range(video_info.total_frames), desc="Rendering videos with Bounding Box: "):
@@ -75,8 +87,12 @@ for _ in tqdm(range(video_info.total_frames), desc="Rendering videos with Boundi
     if not ret:
         break
 
-    result = model(frame, imgsz=MODEL_RESOLUTION,
-                   verbose=False, device='mps')[0]
+    result = model(
+        frame,
+        imgsz=MODEL_RESOLUTION,
+        verbose=False,
+        device=''  # your device here
+    )[0]
 
     detections = sv.Detections.from_ultralytics(result)
     detections = detections[polygon_zone.trigger(detections)]
@@ -84,7 +100,8 @@ for _ in tqdm(range(video_info.total_frames), desc="Rendering videos with Boundi
     detections = byte_track.update_with_detections(detections)
 
     points = detections.get_anchors_coordinates(
-        anchor=sv.Position.BOTTOM_CENTER)
+        anchor=sv.Position.BOTTOM_CENTER
+    )
     points = view_transformer.transform_points(points=points).astype(int)
 
     for tracker_id, [_, y] in zip(detections.tracker_id, points):
@@ -102,9 +119,14 @@ for _ in tqdm(range(video_info.total_frames), desc="Rendering videos with Boundi
 
     annotated_frame = frame.copy()
     annotated_frame = bounding_box_annotator.annotate(
-        scene=annotated_frame, detections=detections)
+        scene=annotated_frame,
+        detections=detections
+    )
     annotated_frame = label_annotator.annotate(
-        scene=annotated_frame, detections=detections, labels=labels)
+        scene=annotated_frame,
+        detections=detections,
+        labels=labels
+    )
     vid_writer.write(annotated_frame)
 
 cap.release()
